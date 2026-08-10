@@ -45,7 +45,7 @@ services:
 
   server:
     build:
-      context: ./etho-main/server
+      context: .
       dockerfile: Dockerfile.prod
     container_name: "etho_server_prod"
     ports:
