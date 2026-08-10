@@ -1,0 +1,112 @@
+
+services:
+  etho_db:
+    image: "postgres:15-alpine"
+    container_name: "etho_postgres_prod"
+    environment:
+      POSTGRES_USER: etho_user
+      POSTGRES_PASSWORD: etho_pass
+      POSTGRES_DB: etho_db
+      POSTGRES_PORT: 5432
+    ports:
+      - "5432:5432"
+    volumes:
+      - etho_db_data:/var/lib/postgresql/data
+    networks:
+      - etho_network
+    restart: unless-stopped
+
+  redis:
+    image: "redis:7-alpine"
+    container_name: "etho_redis_prod"
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - etho_network
+    restart: unless-stopped
+
+  client:
+    build:
+      context: ./etho-main/client
+      dockerfile: Dockerfile.prod
+    container_name: "etho_client_prod"
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - API_BASE_URL=http://etho_server_prod:8080/api
+    networks:
+      - etho_network
+    depends_on:
+      - server
+    restart: unless-stopped
+
+  server:
+    build:
+      context: ./etho-main/server
+      dockerfile: Dockerfile.prod
+    container_name: "etho_server_prod"
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - DB_HOST=etho_db
+      - DB_PORT=5432
+      - DB_USERNAME=etho_user
+      - DB_PASSWORD=etho_pass
+      - DB_NAME=etho_db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - COOKIE_SECRET=${COOKIE_SECRET:-prod-cookie-secret}
+    networks:
+      - etho_network
+    depends_on:
+      - etho_db
+      - redis
+    restart: unless-stopped
+
+  scraper:
+    build:
+      context: ./scraper
+      dockerfile: Dockerfile.prod
+    container_name: "etho_scraper_prod"
+    ports:
+      - "9999:9999"
+    environment:
+      - NODE_ENV=production
+      - PORT=9999
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    networks:
+      - etho_network
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  llm_tagger:
+    build:
+      context: ./nlp_tagger
+      dockerfile: Dockerfile.prod
+    container_name: "etho_llm_tagger_prod"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    env_file:
+      - ./nlp_tagger/.env
+    networks:
+      - etho_network
+    depends_on:
+      - redis
+      - server
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  etho_db_data:
+
+networks:
+  etho_network:
+    driver: bridge
