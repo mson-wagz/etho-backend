@@ -1,0 +1,49 @@
+version: 0.2
+
+env:
+  variables:
+    NEST_PROJECT_ROOT: "etho-main/server"
+
+phases:
+  install:
+    on-failure: ABORT
+    runtime-versions:
+      nodejs: 20
+    commands:
+      - npm i -g npm typescript @nestjs/cli
+
+  pre_build:
+    on-failure: ABORT
+    commands:
+      - cd $CODEBUILD_SRC_DIR/$NEST_PROJECT_ROOT
+      - echo "Changed directory to $NEST_PROJECT_ROOT"
+      - npm ci;
+
+  build:
+    on-failure: ABORT
+    commands:
+      - npm run build
+
+  post_build:
+    on-failure: ABORT
+    commands:
+      - if [ -f ProcFile ]; then mv ProcFile Procfile; fi
+      # Copy environment configs to root
+      # - cp -r config/dev/.ebextensions .
+      # - cp -r config/dev/.platform .
+      # Verification steps
+      - test -f package.json && echo "✓ package.json exists"
+      - test -f Procfile && echo "✓ Procfile exists"
+      - test -f package-lock.json && echo "✓ package-lock.json exists"
+      - test -d dist && echo "✓ dist exists"
+      # - test -d .ebextensions && echo "✓ .ebextensions copied"
+      # - test -d .platform && echo "✓ .platform copied"
+artifacts:
+  files:
+    - "**/*"
+  base-directory: $CODEBUILD_SRC_DIR/$NEST_PROJECT_ROOT
+
+cache:
+  paths:
+    # NPM cache
+    - "/root/.npm/**/*"
