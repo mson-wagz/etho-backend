@@ -69,7 +69,7 @@ services:
   scraper:
     build:
       context: ./scraper
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     container_name: "etho_scraper_dev"
     ports:
       - "9999:9999"
